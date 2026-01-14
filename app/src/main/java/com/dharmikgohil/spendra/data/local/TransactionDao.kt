@@ -25,4 +25,7 @@ interface TransactionDao {
 
     @Query("UPDATE transactions SET category = :category WHERE rawTextHash = :rawTextHash")
     suspend fun updateCategory(rawTextHash: String, category: String)
+
+    @Query("UPDATE transactions SET isSynced = 0")
+    suspend fun markAllAsUnsynced()
 }

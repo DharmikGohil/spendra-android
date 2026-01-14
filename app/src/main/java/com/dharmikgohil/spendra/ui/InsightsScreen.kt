@@ -1,6 +1,10 @@
 package com.dharmikgohil.spendra.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -12,10 +16,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dharmikgohil.spendra.ui.components.SpendraCard
 import com.dharmikgohil.spendra.SpendingItem
@@ -29,12 +35,10 @@ fun InsightsScreen(
 ) {
     val context = LocalContext.current
     val spendingState by viewModel.spendingState.collectAsState()
-    val safeToSpend by viewModel.safeToSpend.collectAsState()
+    val previousSpendingState by viewModel.previousSpendingState.collectAsState()
     val totalSpent by viewModel.totalSpentThisMonth.collectAsState()
     
-    // Calculate Health Score (Simple logic for MVP)
-    // 30000 is hardcoded budget in ViewModel. 
-    // Score = 100 - (% of budget spent). If spent > budget, score is 0.
+    // Calculate Health Score
     val budget = 30000.0
     val healthScore = remember(totalSpent) {
         val percentSpent = (totalSpent / budget) * 100
@@ -78,15 +82,15 @@ fun InsightsScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            // 1. Financial Health Summary
+            // 1. Financial Pulse
             item {
-                HealthSummaryCard(score = healthScore, totalSpent = totalSpent)
+                FinancialPulseCard(score = healthScore, totalSpent = totalSpent)
             }
 
-            // 2. Smart Category Spending
+            // 2. Smart Category Spending (Horizontal)
             item {
                 Text(
-                    "Top Spending",
+                    "Where your money went",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
@@ -95,58 +99,51 @@ fun InsightsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(response.data.sortedByDescending { it.total }) { item ->
-                            CategoryInsightCard(item = item, totalSpent = totalSpent)
+                            // Find previous month data for this category
+                            val prevItem = previousSpendingState?.data?.find { it.categoryId == item.categoryId }
+                            SmartCategoryCard(
+                                item = item, 
+                                totalSpent = response.total,
+                                prevTotal = prevItem?.total ?: 0.0
+                            )
                         }
                     }
-                } ?: Text("Loading categories...")
+                } ?: Text("Analyzing spending...")
             }
 
-            // 3. Trend & Behavior Changes
+            // 3. Intelligent Coach (Carousel)
             item {
                 Text(
-                    "Trends",
+                    "Coach Insights",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                // Mock trends for MVP
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TrendInsightCard(
-                        title = "Food Delivery",
-                        change = "+28% vs last month",
-                        isPositive = false // Spending went up, so negative impact
-                    )
-                    TrendInsightCard(
-                        title = "Groceries",
-                        change = "-₹400 saved this week",
-                        isPositive = true
-                    )
+                // Generate insights based on data
+                val insights = remember(spendingState, previousSpendingState) {
+                    generateInsights(spendingState?.data ?: emptyList(), previousSpendingState?.data ?: emptyList())
+                }
+                
+                if (insights.isNotEmpty()) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(insights) { insight ->
+                            InsightCard(insight)
+                        }
+                    }
+                } else {
+                    Text("No insights yet. Keep spending to get tips!")
                 }
             }
 
-            // 4. AI Insights
+            // 4. Suggested Actions
             item {
                 Text(
-                    "Coach Says",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                PersonalizedInsightCard(
-                    message = "You ordered food 5 times this week.",
-                    impact = "Reducing to 3 could save ~₹800/month.",
-                    actionLabel = "Set Food Budget"
-                )
-            }
-
-            // 5. Quick Actions
-            item {
-                Text(
-                    "Quick Actions",
+                    "Suggested Actions",
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionButton(text = "Set Budget")
-                    ActionButton(text = "Alerts")
+                    ActionChip(text = "Set Budget", icon = "💰")
+                    ActionChip(text = "Review Subs", icon = "📅")
                 }
             }
         }
@@ -154,11 +151,11 @@ fun InsightsScreen(
 }
 
 @Composable
-fun HealthSummaryCard(score: Int, totalSpent: Double) {
+fun FinancialPulseCard(score: Int, totalSpent: Double) {
     val status = when {
         score > 80 -> "Excellent!"
         score > 50 -> "On Track"
-        else -> "Spending High"
+        else -> "Needs Attention"
     }
     
     val color = when {
@@ -178,12 +175,12 @@ fun HealthSummaryCard(score: Int, totalSpent: Double) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Health Score",
+                    text = "Financial Pulse",
                     style = MaterialTheme.typography.labelMedium
                 )
                 Text(
-                    text = "$score/100",
-                    style = MaterialTheme.typography.displayLarge,
+                    text = "$score",
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = 48.sp),
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -191,19 +188,35 @@ fun HealthSummaryCard(score: Int, totalSpent: Double) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+                Text(
+                    text = "Based on this month's activity",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
             
-            // Simple visual for score
+            // Progress Ring Visual
             Box(
                 modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .size(80.dp),
                 contentAlignment = Alignment.Center
             ) {
+                CircularProgressIndicator(
+                    progress = { 1f },
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                    strokeWidth = 8.dp,
+                )
+                CircularProgressIndicator(
+                    progress = { score / 100f },
+                    modifier = Modifier.fillMaxSize(),
+                    color = if (score > 50) Color(0xFF4CAF50) else Color(0xFFF44336),
+                    strokeWidth = 8.dp,
+                )
                 Text(
-                    text = if (score > 50) "😊" else "😬",
-                    style = MaterialTheme.typography.displayMedium
+                    text = if (score > 80) "😎" else if (score > 50) "🙂" else "😬",
+                    style = MaterialTheme.typography.displaySmall
                 )
             }
         }
@@ -211,13 +224,20 @@ fun HealthSummaryCard(score: Int, totalSpent: Double) {
 }
 
 @Composable
-fun CategoryInsightCard(item: SpendingItem, totalSpent: Double) {
+fun SmartCategoryCard(item: SpendingItem, totalSpent: Double, prevTotal: Double) {
     val percent = if (totalSpent > 0) (item.total / totalSpent * 100).toInt() else 0
+    val diff = item.total - prevTotal
+    val trendText = if (prevTotal > 0) {
+        if (diff > 0) "⬆️ ₹${diff.toInt()}" else "⬇️ ₹${kotlin.math.abs(diff.toInt())}"
+    } else {
+        "New"
+    }
+    val trendColor = if (diff > 0) Color(0xFFD32F2F) else Color(0xFF388E3C) // Red if spent more, Green if saved
     
     SpendraCard(
         modifier = Modifier
             .width(160.dp)
-            .height(180.dp),
+            .height(190.dp),
         backgroundColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
@@ -228,7 +248,7 @@ fun CategoryInsightCard(item: SpendingItem, totalSpent: Double) {
         ) {
             Column {
                 Text(
-                    text = item.categoryName.take(2).uppercase(), // Placeholder icon
+                    text = item.categoryName.take(2).uppercase(),
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
@@ -253,6 +273,15 @@ fun CategoryInsightCard(item: SpendingItem, totalSpent: Double) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
+                if (prevTotal > 0) {
+                    Text(
+                        text = trendText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = trendColor,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
                 LinearProgressIndicator(
                     progress = { percent / 100f },
                     modifier = Modifier
@@ -267,94 +296,130 @@ fun CategoryInsightCard(item: SpendingItem, totalSpent: Double) {
     }
 }
 
-@Composable
-fun TrendInsightCard(title: String, change: String, isPositive: Boolean) {
-    SpendraCard(
-        modifier = Modifier.fillMaxWidth(),
-        backgroundColor = MaterialTheme.colorScheme.surface
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = change,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (isPositive) Color(0xFF2E7D32) else Color(0xFFC62828)
-                )
-            }
-            Text(
-                text = if (isPositive) "📉" else "📈",
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-    }
-}
+data class Insight(
+    val title: String,
+    val message: String,
+    val type: InsightType,
+    val action: String
+)
+
+enum class InsightType { ALERT, SAVING, HABIT }
 
 @Composable
-fun PersonalizedInsightCard(message: String, impact: String, actionLabel: String) {
+fun InsightCard(insight: Insight) {
+    val bgColor = when (insight.type) {
+        InsightType.ALERT -> Color(0xFFFFEBEE) // Red
+        InsightType.SAVING -> Color(0xFFE8F5E9) // Green
+        InsightType.HABIT -> Color(0xFFE3F2FD) // Blue
+    }
+    
     SpendraCard(
-        modifier = Modifier.fillMaxWidth(),
-        backgroundColor = Color(0xFFE3F2FD) // Light Blue
+        modifier = Modifier
+            .width(280.dp)
+            .height(160.dp),
+        backgroundColor = bgColor
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("✨", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = when (insight.type) {
+                            InsightType.ALERT -> "⚠️"
+                            InsightType.SAVING -> "🎉"
+                            InsightType.HABIT -> "💡"
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = insight.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Insight",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
+                    text = insight.message,
+                    style = MaterialTheme.typography.bodyMedium
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = impact,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            
             Button(
                 onClick = { /* TODO */ },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                modifier = Modifier.height(36.dp)
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                modifier = Modifier.height(32.dp).align(Alignment.End)
             ) {
-                Text(text = actionLabel, style = MaterialTheme.typography.labelLarge)
+                Text(text = insight.action, style = MaterialTheme.typography.labelMedium)
             }
         }
     }
 }
 
 @Composable
-fun ActionButton(text: String) {
-    OutlinedButton(
-        onClick = { /* TODO */ },
+fun ActionChip(text: String, icon: String) {
+    Surface(
         shape = RoundedCornerShape(12.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.clickable { /* TODO */ }
     ) {
-        Text(text)
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = icon, style = MaterialTheme.typography.bodyLarge)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = text, style = MaterialTheme.typography.labelLarge)
+        }
     }
+}
+
+// Simple logic to generate insights
+fun generateInsights(current: List<SpendingItem>, previous: List<SpendingItem>): List<Insight> {
+    val insights = mutableListOf<Insight>()
+    
+    // 1. Check for high spending categories
+    current.forEach { item ->
+        val prevItem = previous.find { it.categoryId == item.categoryId }
+        if (prevItem != null) {
+            val increase = item.total - prevItem.total
+            if (increase > 1000) { // Threshold
+                insights.add(Insight(
+                    title = "Spending Spike",
+                    message = "${item.categoryName} is ₹${increase.toInt()} higher than last month.",
+                    type = InsightType.ALERT,
+                    action = "Check Transactions"
+                ))
+            } else if (increase < -500) {
+                insights.add(Insight(
+                    title = "Great Saving!",
+                    message = "You spent ₹${kotlin.math.abs(increase.toInt())} less on ${item.categoryName}.",
+                    type = InsightType.SAVING,
+                    action = "Keep it up"
+                ))
+            }
+        }
+    }
+    
+    // Fallback insight
+    if (insights.isEmpty() && current.isNotEmpty()) {
+        insights.add(Insight(
+            title = "Spending Habit",
+            message = "Your top category is ${current.maxBy { it.total }.categoryName}.",
+            type = InsightType.HABIT,
+            action = "Set Budget"
+        ))
+    }
+    
+    return insights
 }

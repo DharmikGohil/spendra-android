@@ -44,6 +44,9 @@ class HomeViewModel(private val dao: TransactionDao) : ViewModel() {
 
     suspend fun syncTransactions(deviceId: String) {
         try {
+            // Force full resync to fix backend state
+            dao.markAllAsUnsynced()
+            
             val unsynced = dao.getUnsyncedTransactions()
             if (unsynced.isEmpty()) return
 
@@ -83,18 +86,37 @@ class HomeViewModel(private val dao: TransactionDao) : ViewModel() {
     private val _spendingState = kotlinx.coroutines.flow.MutableStateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?>(null)
     val spendingState: StateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?> = _spendingState
 
+    private val _previousSpendingState = kotlinx.coroutines.flow.MutableStateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?>(null)
+    val previousSpendingState: StateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?> = _previousSpendingState
+
     suspend fun getSpendingInsights(deviceId: String) {
         try {
             val now = LocalDate.now()
+            
+            // Current Month
             val startOfMonth = now.withDayOfMonth(1).toString()
             val endOfMonth = now.plusMonths(1).withDayOfMonth(1).minusDays(1).toString()
 
+            // Previous Month
+            val startOfPrevMonth = now.minusMonths(1).withDayOfMonth(1).toString()
+            val endOfPrevMonth = now.withDayOfMonth(1).minusDays(1).toString()
+
+            // Fetch Current
             val response = com.dharmikgohil.spendra.ApiClient.api.getSpendingSummary(
                 deviceId = deviceId,
                 startDate = "${startOfMonth}T00:00:00Z",
                 endDate = "${endOfMonth}T23:59:59Z"
             )
             _spendingState.value = response
+
+            // Fetch Previous
+            val prevResponse = com.dharmikgohil.spendra.ApiClient.api.getSpendingSummary(
+                deviceId = deviceId,
+                startDate = "${startOfPrevMonth}T00:00:00Z",
+                endDate = "${endOfPrevMonth}T23:59:59Z"
+            )
+            _previousSpendingState.value = prevResponse
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
