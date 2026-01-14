@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.READ_SMS" />
 
     <application
+        android:name=".SpendraApplication"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"

@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.dharmikgohil.spendra.data.local.TransactionEntity
 
 class SmsReceiver : BroadcastReceiver() {
 
@@ -48,6 +49,17 @@ class SmsReceiver : BroadcastReceiver() {
                 if (transaction != null) {
                     Log.d(TAG, "Parsed: ${transaction.merchant} - ₹${transaction.amount}")
                     
+                    val dao = (context.applicationContext as SpendraApplication).database.transactionDao()
+
+                    // Save to Local DB
+                    try {
+                        val entity = transaction.toEntity()
+                        dao.insertTransaction(entity)
+                        Log.d(TAG, "Saved to local DB")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to save to local DB", e)
+                    }
+                    
                     // Sync to backend
                     try {
                         val deviceId = Settings.Secure.getString(
@@ -65,6 +77,14 @@ class SmsReceiver : BroadcastReceiver() {
                         )
                         
                         Log.d(TAG, "Synced: ${response.created} created, ${response.skipped} skipped")
+                        
+                        // Update local categories from backend response
+                        response.data?.forEach { dto ->
+                            if (dto.category != null && dto.rawTextHash != null) {
+                                dao.updateCategory(dto.rawTextHash, dto.category.name)
+                                Log.d(TAG, "Updated category for ${dto.merchant}: ${dto.category.name}")
+                            }
+                        }
                     } catch (e: Exception) {
                         Log.e(TAG, "Sync failed", e)
                     }
@@ -79,6 +99,18 @@ class SmsReceiver : BroadcastReceiver() {
         return sender.length == 6 && sender.any { it.isLetter() }
     }
 
+    private fun Transaction.toEntity() = TransactionEntity(
+        amount = amount,
+        type = type,
+        merchant = merchant,
+        source = source,
+        timestamp = timestamp,
+        balance = balance,
+        rawTextHash = rawTextHash,
+        category = category,
+        isSynced = false
+    )
+
     private fun Transaction.toDto() = TransactionDto(
         amount = amount,
         type = type,
@@ -86,7 +118,8 @@ class SmsReceiver : BroadcastReceiver() {
         source = source,
         timestamp = formatTimestamp(timestamp),
         rawTextHash = rawTextHash,
-        balance = balance
+        balance = balance,
+        category = null // Backend ignores this, and we can't construct CategoryDto from string
     )
 
     private fun formatTimestamp(millis: Long): String {

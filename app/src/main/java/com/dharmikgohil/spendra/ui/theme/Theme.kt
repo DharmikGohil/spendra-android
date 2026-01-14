@@ -12,40 +12,28 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 // Define the Spendra Color Scheme (Light Theme Only as per spec)
-private val SpendraColorScheme = lightColorScheme(
-    primary = SpendraOrange,
-    onPrimary = SpendraCream,
-    secondary = SpendraYellow,
+private val LightColorScheme = lightColorScheme(
+    primary = SpendraBlack,
+    onPrimary = SpendraWhite,
+    primaryContainer = SpendraBlack,
+    onPrimaryContainer = SpendraWhite,
+    secondary = SpendraOrange,
     onSecondary = SpendraBlack,
     tertiary = SpendraGreen,
     background = SpendraCream,
     onBackground = SpendraBlack,
-    surface = SpendraCream,
+    surface = SpendraWhite,
     onSurface = SpendraBlack,
-    error = SpendraRed,
-    onError = SpendraCream,
-    outline = SpendraGray
+    outline = SpendraBlack,
+    error = SpendraRed
 )
 
 @Composable
 fun SpendraTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    // We disable it to enforce the Spendra Brand Palette
-    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = SpendraColorScheme
+    val colorScheme = LightColorScheme
     
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-        }
-    }
-
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,

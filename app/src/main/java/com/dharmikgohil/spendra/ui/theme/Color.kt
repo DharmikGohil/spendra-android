@@ -2,30 +2,28 @@ package com.dharmikgohil.spendra.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Spendra Design System v1.0 Colors
+// Spendra Design System v2.0 Colors (Calm Neo-Brutalism)
 
-// Primary Background
-val SpendraCream = Color(0xFFFAF7F2)
+// Primary Backgrounds
+val SpendraCream = Color(0xFFFDFBF7) // Warm, paper-like background
+val SpendraWhite = Color(0xFFFFFFFF)
 
-// Primary Text
-val SpendraBlack = Color(0xFF1C1C1C)
+// Primary Text & Borders
+val SpendraBlack = Color(0xFF121212) // Soft black for high contrast text/borders
 
-// Secondary Text
-val SpendraCharcoal = Color(0xFF4A4A4A)
+// Accents
+val SpendraOrange = Color(0xFFFF6B4A) // Vibrant orange for primary actions
+val SpendraGreen = Color(0xFF4CAF50)  // Success / Income
+val SpendraRed = Color(0xFFE53935)    // Error / Expense
+val SpendraYellow = Color(0xFFFFC107) // Warning / Attention
 
-// Accent Primary (Brand Color)
-val SpendraOrange = Color(0xFFF26A3D)
+// Neutrals
+val SpendraGray = Color(0xFFF5F5F5)
+val SpendraDarkGray = Color(0xFF757575)
 
-// Accent Secondary
-val SpendraYellow = Color(0xFFF5C451)
-
-// Status Colors
-val SpendraGreen = Color(0xFF2E8B57) // Success
-val SpendraAmber = Color(0xFFE6A23C) // Warning
-val SpendraRed = Color(0xFFC94A4A)   // Error
-
-// Dividers / Borders
-val SpendraGray = Color(0xFFE3E0DA)
-
-// Disabled State
-val SpendraDisabledText = Color(0xFF9A9A9A)
+// Semantic Aliases
+val SpendraPrimary = SpendraBlack
+val SpendraOnPrimary = SpendraWhite
+val SpendraBackground = SpendraCream
+val SpendraSurface = SpendraWhite
+val SpendraOutline = SpendraBlack // Thick borders use this

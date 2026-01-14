@@ -19,6 +19,13 @@ interface SpendraApi {
         @retrofit2.http.Query("limit") limit: Int = 50,
         @retrofit2.http.Query("offset") offset: Int = 0
     ): GetTransactionsResponse
+
+    @retrofit2.http.GET("insights/spending")
+    suspend fun getSpendingSummary(
+        @retrofit2.http.Header("x-device-id") deviceId: String,
+        @retrofit2.http.Query("startDate") startDate: String,
+        @retrofit2.http.Query("endDate") endDate: String
+    ): SpendingSummaryResponse
 }
 
 // API Response Models
@@ -47,8 +54,27 @@ data class ApiTransaction(
 data class CategoryDto(
     val id: String,
     val name: String,
+    val slug: String,
     val icon: String?,
     val color: String?
+)
+
+data class SpendingSummaryResponse(
+    val data: List<SpendingItem>,
+    val total: Double,
+    val period: Period
+)
+
+data class SpendingItem(
+    val categoryId: String,
+    val categoryName: String,
+    val total: Double,
+    val count: Int
+)
+
+data class Period(
+    val start: String,
+    val end: String
 )
 
 // Singleton API client
