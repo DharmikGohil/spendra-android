@@ -15,7 +15,7 @@ interface SpendraApi {
 
     @retrofit2.http.GET("transactions")
     suspend fun getTransactions(
-        @retrofit2.http.Query("deviceId") deviceId: String,
+        @retrofit2.http.Header("x-device-id") deviceId: String,
         @retrofit2.http.Query("limit") limit: Int = 50,
         @retrofit2.http.Query("offset") offset: Int = 0
     ): GetTransactionsResponse
