@@ -29,6 +29,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Warning
 import com.dharmikgohil.spendra.ui.theme.SpendraBlack
 import com.dharmikgohil.spendra.ui.theme.SpendraGray
 import com.dharmikgohil.spendra.ui.theme.SpendraWhite
@@ -116,6 +119,136 @@ fun SpendraButton(
                 text = text,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = contentColor
+            )
+        }
+    }
+}
+
+/**
+ * SuggestedActionCard: Prompts the user to take a specific financial action.
+ */
+@Composable
+fun SuggestedActionCard(
+    title: String,
+    description: String,
+    primaryActionLabel: String,
+    onPrimaryClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable (() -> Unit)? = null
+) {
+    SpendraCard(modifier = modifier) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Box(modifier = Modifier.padding(end = 8.dp)) { icon() }
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = SpendraBlack
+                )
+            }
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 4.dp))
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = SpendraBlack
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 8.dp))
+            SpendraButton(
+                onClick = onPrimaryClick,
+                text = primaryActionLabel,
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSecondary
+            )
+        }
+    }
+}
+
+/**
+ * BudgetRecommendationCard: Shows a suggested budget vs average spend.
+ */
+@Composable
+fun BudgetRecommendationCard(
+    categoryName: String,
+    suggestedAmount: Double,
+    averageSpend: Double,
+    onApply: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    SpendraCard(modifier = modifier) {
+        androidx.compose.foundation.layout.Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Budget for $categoryName",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = SpendraBlack
+            )
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 8.dp))
+            
+            // Comparison Visualization
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                androidx.compose.foundation.layout.Arrangement.SpaceBetween
+            ) {
+                androidx.compose.foundation.layout.Column {
+                    Text(text = "Avg Spend", style = MaterialTheme.typography.labelSmall)
+                    Text(text = "₹${averageSpend.toInt()}", style = MaterialTheme.typography.bodyLarge)
+                }
+                androidx.compose.material.icons.Icons.Default.ArrowForward.let { 
+                    androidx.compose.material3.Icon(it, contentDescription = null) 
+                }
+                androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.End) {
+                    Text(text = "Suggested", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = "₹${suggestedAmount.toInt()}", 
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+            
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(vertical = 12.dp))
+            SpendraButton(
+                onClick = onApply,
+                text = "Apply Limit",
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+/**
+ * AlertBanner: High visibility alert for critical info.
+ */
+@Composable
+fun AlertBanner(
+    message: String,
+    modifier: Modifier = Modifier,
+    isError: Boolean = false
+) {
+    val backgroundColor = if (isError) Color(0xFFFFCDD2) else Color(0xFFFFF9C4) // Red-ish or Yellow-ish
+    val borderColor = SpendraBlack
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(2.dp, borderColor, RoundedCornerShape(8.dp))
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material.icons.Icons.Default.Warning.let {
+                androidx.compose.material3.Icon(it, contentDescription = null, tint = SpendraBlack)
+            }
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(horizontal = 8.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = SpendraBlack
             )
         }
     }

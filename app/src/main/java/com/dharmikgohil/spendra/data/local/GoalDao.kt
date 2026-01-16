@@ -1,0 +1,18 @@
+package com.dharmikgohil.spendra.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+
+@Dao
+interface GoalDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGoal(goal: GoalEntity)
+
+    @Query("SELECT * FROM goals WHERE userId = :userId")
+    suspend fun getGoals(userId: String): List<GoalEntity>
+
+    @Query("SELECT * FROM goals WHERE id = :id")
+    suspend fun getGoalById(id: String): GoalEntity?
+}

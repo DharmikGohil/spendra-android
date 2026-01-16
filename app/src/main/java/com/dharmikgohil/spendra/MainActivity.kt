@@ -18,12 +18,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dharmikgohil.spendra.ui.theme.SpendraTheme
-import com.dharmikgohil.spendra.ui.TransactionListScreen
-import com.dharmikgohil.spendra.ui.components.SpendraButton
-import com.dharmikgohil.spendra.ui.components.SpendraCard
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
+import com.dharmikgohil.spendra.ui.BudgetScreen
+import com.dharmikgohil.spendra.ui.BudgetViewModel
+import com.dharmikgohil.spendra.ui.GoalsScreen
+import com.dharmikgohil.spendra.ui.GoalsViewModel
 import com.dharmikgohil.spendra.ui.HomeViewModel
 import com.dharmikgohil.spendra.ui.InsightsScreen
+import com.dharmikgohil.spendra.ui.TransactionListScreen
+import com.dharmikgohil.spendra.ui.components.AlertBanner
+import com.dharmikgohil.spendra.ui.components.SpendraButton
+import com.dharmikgohil.spendra.ui.components.SpendraCard
+import com.dharmikgohil.spendra.ui.components.SuggestedActionCard
 
 class MainActivity : ComponentActivity() {
     
@@ -57,18 +69,38 @@ fun HomeScreen(
 ) {
     var currentScreen by remember { mutableStateOf("home") }
 
+    // Navigation Logic
     if (currentScreen == "transactions") {
         TransactionListScreen(onBackClick = { currentScreen = "home" })
         return
     }
-
-    if (currentScreen == "insights") {
-        InsightsScreen(onBackClick = { currentScreen = "home" })
+    // Insights are now on Home
+    // if (currentScreen == "insights") { ... }
+    if (currentScreen == "budgets") {
+        val budgetViewModel: BudgetViewModel = viewModel(factory = BudgetViewModel.Factory)
+        val suggestions by viewModel.suggestions.collectAsState()
+        val budgetSuggestions = suggestions.filter { it.type == "BUDGET" }
+        BudgetScreen(
+            viewModel = budgetViewModel, 
+            suggestions = budgetSuggestions,
+            onBackClick = { currentScreen = "home" }
+        )
+        return
+    }
+    if (currentScreen == "goals") {
+        val goalsViewModel: GoalsViewModel = viewModel(factory = GoalsViewModel.Factory)
+        val suggestions by viewModel.suggestions.collectAsState()
+        val goalSuggestions = suggestions.filter { it.type == "GOAL" }
+        GoalsScreen(
+            viewModel = goalsViewModel, 
+            suggestions = goalSuggestions,
+            onBackClick = { currentScreen = "home" }
+        )
         return
     }
 
-    val safeToSpend by viewModel.safeToSpend.collectAsState()
-    val totalSpent by viewModel.totalSpentThisMonth.collectAsState()
+    val dailySummary by viewModel.dailySummary.collectAsState()
+    val suggestions by viewModel.suggestions.collectAsState()
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -85,133 +117,196 @@ fun HomeScreen(
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { /* TODO: Add Transaction */ },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Transaction")
+            }
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(bottom = 80.dp) // Space for FAB
         ) {
-            // Hero Section
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Good Morning, Dharmik",
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "Your financial weather is clear ☀️",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                )
-            }
-
-            // Status Card (Neo-Brutalist)
-            SpendraCard(
-                modifier = Modifier.fillMaxWidth(),
-                backgroundColor = MaterialTheme.colorScheme.surface
-            ) {
+            // Header
+            item {
                 Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Simple circle indicator
-                        Surface(
-                            modifier = Modifier.size(12.dp),
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            color = if (safeToSpend > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                        ) {}
-                        Text(
-                            text = "Safe to Spend",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                    }
-                    
                     Text(
-                        text = "₹ ${String.format("%.0f", safeToSpend)}",
-                        style = MaterialTheme.typography.displayLarge.copy(
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        )
+                        text = "Good Morning, Dharmik",
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
-                    
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline,
-                        thickness = 1.dp
+                    Text(
+                        text = "Your financial weather is clear ☀️",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                     )
-                    
-                    Row(
+                }
+            }
+
+            // Safe to Spend Hero
+            item {
+                dailySummary?.let { summary ->
+                    SpendraCard(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        backgroundColor = MaterialTheme.colorScheme.surface
                     ) {
-                        Text(
-                            text = "Spent: ₹${String.format("%.0f", totalSpent)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(12.dp),
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = if (summary.safeToSpend > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                ) {}
+                                Text(
+                                    text = "Safe to Spend Today",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            
+                            Text(
+                                text = "₹ ${String.format("%.0f", summary.safeToSpend)}",
+                                style = MaterialTheme.typography.displayLarge.copy(
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                )
+                            )
+                            
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp)
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Spent: ₹${String.format("%.0f", summary.totalSpentToday)}",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(
+                                    text = "${summary.daysRemaining} days left",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                } ?: run {
+                    // Loading State
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            // Alerts
+            item {
+                dailySummary?.let { summary ->
+                    if (summary.safeToSpend <= 0) {
+                        com.dharmikgohil.spendra.ui.components.AlertBanner(
+                            message = "You've exceeded your daily limit!",
+                            isError = true
                         )
-                        Text(
-                            text = "Budget: ₹30,000",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    } else if (summary.safeToSpend < 500) {
+                        com.dharmikgohil.spendra.ui.components.AlertBanner(
+                            message = "Tight budget today. Spend wisely.",
+                            isError = false
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Action Buttons
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    SpendraButton(
-                        onClick = { currentScreen = "transactions" },
-                        text = "Transactions",
-                        modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
-                    )
-                    
-                    SpendraButton(
-                        onClick = { currentScreen = "insights" },
-                        text = "Insights",
-                        modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary
-                    )
-                }
-                
-                val context = androidx.compose.ui.platform.LocalContext.current
-                val scope = androidx.compose.runtime.rememberCoroutineScope()
-                SpendraButton(
-                    onClick = { 
-                        val deviceId = android.provider.Settings.Secure.getString(
-                            context.contentResolver,
-                            android.provider.Settings.Secure.ANDROID_ID
-                        )
-                        android.widget.Toast.makeText(context, "Syncing...", android.widget.Toast.LENGTH_SHORT).show()
-                        scope.launch {
-                            viewModel.syncTransactions(deviceId)
-                            android.widget.Toast.makeText(context, "Sync completed", android.widget.Toast.LENGTH_SHORT).show()
-                        }
+            // Suggestions Feed
+            items(suggestions) { suggestion ->
+                com.dharmikgohil.spendra.ui.components.SuggestedActionCard(
+                    title = suggestion.title,
+                    description = suggestion.description,
+                    primaryActionLabel = if (suggestion.type == "BUDGET") "Review Budget" else "Start Saving",
+                    onPrimaryClick = {
+                        if (suggestion.type == "BUDGET") currentScreen = "budgets"
+                        else currentScreen = "goals"
                     },
-                    text = "Sync Now",
-                    modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    icon = {
+                        if (suggestion.type == "BUDGET") {
+                            Icon(Icons.Default.ShoppingCart, contentDescription = null)
+                        } else {
+                            Icon(Icons.Default.Star, contentDescription = null)
+                        }
+                    }
                 )
+            }
+
+            // Quick Actions (Navigation)
+            item {
+                Text(
+                    text = "Quick Actions",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SpendraButton(
+                            onClick = { currentScreen = "transactions" },
+                            text = "Transactions",
+                            modifier = Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary
+                        )
+                        SpendraButton(
+                            onClick = { currentScreen = "budgets" },
+                            text = "Budgets",
+                            modifier = Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SpendraButton(
+                            onClick = { currentScreen = "goals" },
+                            text = "Goals",
+                            modifier = Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        // Sync Button
+                        val context = androidx.compose.ui.platform.LocalContext.current
+                        val scope = androidx.compose.runtime.rememberCoroutineScope()
+                        SpendraButton(
+                            onClick = { 
+                                val deviceId = android.provider.Settings.Secure.getString(
+                                    context.contentResolver,
+                                    android.provider.Settings.Secure.ANDROID_ID
+                                )
+                                android.widget.Toast.makeText(context, "Syncing...", android.widget.Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    viewModel.syncTransactions(deviceId)
+                                    android.widget.Toast.makeText(context, "Sync completed", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            text = "Sync Now",
+                            modifier = Modifier.weight(1f),
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
             }
         }
     }

@@ -27,3 +27,7 @@ val SpendraOnPrimary = SpendraWhite
 val SpendraBackground = SpendraCream
 val SpendraSurface = SpendraWhite
 val SpendraOutline = SpendraBlack // Thick borders use this
+
+// Aliases for compatibility
+val NeoBlack = SpendraBlack
+val NeoWhite = SpendraWhite

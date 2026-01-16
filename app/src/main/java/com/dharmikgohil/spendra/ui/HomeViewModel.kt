@@ -7,40 +7,50 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.dharmikgohil.spendra.SpendraApplication
 import com.dharmikgohil.spendra.data.local.TransactionDao
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
+import com.dharmikgohil.spendra.data.model.DailySummary
+import com.dharmikgohil.spendra.data.model.Suggestion
+import com.dharmikgohil.spendra.data.remote.NetworkModule
 import com.dharmikgohil.spendra.TransactionDto
-import java.time.LocalDate
-import java.time.ZoneId
+import com.dharmikgohil.spendra.SyncRequest
+import com.dharmikgohil.spendra.ApiClient
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class HomeViewModel(private val dao: TransactionDao) : ViewModel() {
 
-    // Hardcoded monthly budget for MVP
-    private val monthlyBudget = 30000.0
+    private val _dailySummary = MutableStateFlow<DailySummary?>(null)
+    val dailySummary: StateFlow<DailySummary?> = _dailySummary.asStateFlow()
 
-    private val startOfMonth = LocalDate.now().withDayOfMonth(1)
-        .atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    private val _suggestions = MutableStateFlow<List<Suggestion>>(emptyList())
+    val suggestions: StateFlow<List<Suggestion>> = _suggestions.asStateFlow()
 
-    val totalSpentThisMonth: StateFlow<Double> = dao.getTotalSpentSince(startOfMonth)
-        .map { it ?: 0.0 }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = 0.0
-        )
+    private val deviceId = "android_emulator_1" // TODO: Get real device ID
 
-    val safeToSpend: StateFlow<Double> = totalSpentThisMonth.map { spent ->
-        val remaining = monthlyBudget - spent
-        val daysRemaining = LocalDate.now().lengthOfMonth() - LocalDate.now().dayOfMonth + 1
-        if (daysRemaining > 0) remaining / daysRemaining else 0.0
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = monthlyBudget / LocalDate.now().lengthOfMonth()
-    )
+    init {
+        loadData()
+    }
+
+    fun loadData() {
+        viewModelScope.launch {
+            try {
+                // Fetch Daily Summary
+                val summary = NetworkModule.api.getDailySummary(deviceId)
+                _dailySummary.value = summary
+                
+                // Fetch Suggestions
+                val suggestionList = NetworkModule.api.getSuggestions(deviceId)
+                _suggestions.value = suggestionList
+                
+                // Trigger Sync in background
+                syncTransactions(deviceId)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Handle error (e.g. show offline state)
+            }
+        }
+    }
 
     suspend fun syncTransactions(deviceId: String) {
         try {
@@ -63,8 +73,10 @@ class HomeViewModel(private val dao: TransactionDao) : ViewModel() {
                 )
             }
 
-            val response = com.dharmikgohil.spendra.ApiClient.api.syncTransactions(
-                com.dharmikgohil.spendra.SyncRequest(deviceId, dtos)
+            // Using the old ApiClient for sync for now, or migrate to NetworkModule if possible.
+            // Assuming ApiClient still exists and works for sync.
+            val response = ApiClient.api.syncTransactions(
+                SyncRequest(deviceId, dtos)
             )
 
             if (response.success) {
@@ -77,46 +89,11 @@ class HomeViewModel(private val dao: TransactionDao) : ViewModel() {
                         dao.updateCategory(dto.rawTextHash, dto.category.name)
                     }
                 }
+                
+                // Reload insights after sync
+                val summary = NetworkModule.api.getDailySummary(deviceId)
+                _dailySummary.value = summary
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private val _spendingState = kotlinx.coroutines.flow.MutableStateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?>(null)
-    val spendingState: StateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?> = _spendingState
-
-    private val _previousSpendingState = kotlinx.coroutines.flow.MutableStateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?>(null)
-    val previousSpendingState: StateFlow<com.dharmikgohil.spendra.SpendingSummaryResponse?> = _previousSpendingState
-
-    suspend fun getSpendingInsights(deviceId: String) {
-        try {
-            val now = LocalDate.now()
-            
-            // Current Month
-            val startOfMonth = now.withDayOfMonth(1).toString()
-            val endOfMonth = now.plusMonths(1).withDayOfMonth(1).minusDays(1).toString()
-
-            // Previous Month
-            val startOfPrevMonth = now.minusMonths(1).withDayOfMonth(1).toString()
-            val endOfPrevMonth = now.withDayOfMonth(1).minusDays(1).toString()
-
-            // Fetch Current
-            val response = com.dharmikgohil.spendra.ApiClient.api.getSpendingSummary(
-                deviceId = deviceId,
-                startDate = "${startOfMonth}T00:00:00Z",
-                endDate = "${endOfMonth}T23:59:59Z"
-            )
-            _spendingState.value = response
-
-            // Fetch Previous
-            val prevResponse = com.dharmikgohil.spendra.ApiClient.api.getSpendingSummary(
-                deviceId = deviceId,
-                startDate = "${startOfPrevMonth}T00:00:00Z",
-                endDate = "${endOfPrevMonth}T23:59:59Z"
-            )
-            _previousSpendingState.value = prevResponse
-
         } catch (e: Exception) {
             e.printStackTrace()
         }
